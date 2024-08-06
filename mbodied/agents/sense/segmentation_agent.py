@@ -1,5 +1,6 @@
 import json
 from typing import List
+
 import numpy as np
 
 from mbodied.agents.sense.sensory_agent import SensoryAgent
@@ -29,7 +30,7 @@ class SegmentationAgent(SensoryAgent):
         *args,
         api_name: str = "/segment",
         **kwargs,
-    ):
+    ) -> tuple[Image, np.ndarray]:
         """Perform image segmentation using the remote segmentation server.
 
         Args:
@@ -37,15 +38,15 @@ class SegmentationAgent(SensoryAgent):
             input_data (Union[BBox2D, List[BBox2D], PixelCoords]): The input data for segmentation, either a bounding box,
                 a list of bounding boxes, or pixel coordinates.
             *args: Variable length argument list.
+            api_name (str): The name of the API endpoint to use.
             **kwargs: Arbitrary keyword arguments.
 
         Returns:
-            Scene: The scene data with the segmented objects.
+            Tuple[Image, np.ndarray]: The segmented image and the masks of the segmented objects.
         """
         if self.actor is None:
             raise ValueError("Remote actor for agent not initialized.")
 
-        # Determine input type and prepare data
         if isinstance(input_data, PixelCoords):
             input_type = "Coordinates"
             input_data_str = f"{input_data.x},{input_data.y}"
@@ -58,13 +59,11 @@ class SegmentationAgent(SensoryAgent):
         else:
             raise ValueError("Unsupported input type. Must be BBox2D, List[BBox2D], or PixelCoords.")
 
-        # Send data to the server and receive results
         segmented_image, masks = self.actor.predict(
             image.base64, input_type, input_data_str, *args, api_name=api_name, **kwargs
         )
         # Convert gradio Dataframe numpy to numpy array.
         masks = np.array(masks["data"])
-        # Assuming Scene can be created with segmented_image and masks
         return Image(segmented_image), masks
 
 

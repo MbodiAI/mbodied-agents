@@ -33,6 +33,11 @@
 
 **Updates:**
 
+**Aug 6 2024, embodied-agents v1.1**
+
+- Added the features to record dataset on [robot](mbodied/robots/robot.py) natively.
+- Add multiple new Sensory Agents, i.e. [depth estimation](mbodied/agents/sense/depth_estimation_agent.py), [object detection](mbodied/agents/sense/object_detection_agent.py), [image segmentation](mbodied/agents/sense/segmentation_agent.py) with public [API endpoints](https://api.mbodi.ai/sense/) hosted.
+
 **June 30 2024, embodied-agents v1.0**:
 
 - Added Motor Agent supporting OpenVLA with free [API endpoint](https://api.mbodi.ai/community-models) hosted.
@@ -79,6 +84,10 @@ This repository is broken down into 3 main components: **Agents**, **Data**, and
 A call to `act` or `async_act` can perform local or remote inference synchronously or asynchronously. Remote execution can be performed with [Gradio](https://www.gradio.app/docs/python-client/introduction), [httpx](https://www.python-httpx.org/), or different LLM clients. Validation is performed with [Pydantic](https://docs.pydantic.dev/latest/).
 
 <img src="assets/architecture.jpg" alt="Architecture Diagram" style="width: 700px;">
+
+- Language Agents natively support OpenAI, Anthropic, Ollama, vLLM, Gradio, etc
+- Motor Agents natively support OpenVLA, RT1(upcoming)
+- Sensory Agents support Depth Anything, YOLO, Segment Anything 2
 
 Jump to [getting started](#getting-started) to get up and running on [real hardware](https://colab.research.google.com/drive/1KN0JohcjHX42wABBHe-CxXP-NWJjbZts?usp=sharing) or [simulation](https://colab.research.google.com/drive/1gJlfEvsODZWGn3rK8Nx4A0kLnLzJtJG_?usp=sharing). Be sure to join our [Discord](https://discord.gg/BPQ7FEGxNb) for 🥇-winning discussions :)
 
@@ -376,7 +385,14 @@ Some small model, like RT1, can run on edge devices. However, some, like OpenVLA
 
 These agents interact with the environment to collect sensor data. They always return a `SensorReading`, which can be various forms of processed sensory input such as images, depth data, or audio signals.
 
-For example, [object_pose_estimator_3d](mbodied/agents/sense/object_pose_estimator_3d.py) is a sensory agent that senses objects' 3d coordinates as the robot sees.
+Currently, we have:
+
+- [depth estimation](mbodied/agents/sense/depth_estimation_agent.py)
+- [object detection](mbodied/agents/sense/object_detection_agent.py)
+- [image segmentation](mbodied/agents/sense/segmentation_agent.py)
+- [3D object pose estimator](mbodied/agents/sense/object_pose_estimator_3d.py)
+
+agents that process robot's sensor information.
 
 ### Motions
 
