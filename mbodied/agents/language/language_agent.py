@@ -68,6 +68,19 @@ class Reminder:
     prompt: str | Image | Message
     n: int
 
+    def __iter__(self):
+        yield self.prompt
+        yield self.n
+
+    def __getitem__(self, key):
+        if key == 0:
+            return self.prompt
+        elif key == 1:
+            return self.n
+        else:
+            raise IndexError("Invalid index")
+
+
 
 def make_context_list(context: list[str | Image | Message] | Image | str | Message | None) -> List[Message]:
     """Convert the context to a list of messages."""
@@ -347,7 +360,7 @@ class LanguageAgent(Agent):
         self, instruction: str, image: Image = None, context: list | str | Image | Message = None, model=None, **kwargs
     ) -> Generator[str, None, str]:
         """Responds to the given instruction, image, and context and streams the response."""
-        message, memory, model = self.prepare_inputs(instruction, image, context)
+        message, memory = self.prepare_inputs(instruction, image, context)
         response = ""
         model = model or kwargs.pop("model", None)
         for chunk in self.actor.stream(memory + [message], model=model, **kwargs):
