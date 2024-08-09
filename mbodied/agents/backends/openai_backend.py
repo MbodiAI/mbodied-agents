@@ -13,6 +13,7 @@
 # limitations under the License.
 
 
+import json
 import os
 from typing import Any, List
 
@@ -24,7 +25,7 @@ from openai._exceptions import RateLimitError as OpenAIRateLimitError
 from mbodied.agents.backends.serializer import Serializer
 from mbodied.types.message import Message
 from mbodied.types.sense.vision import Image
-
+from mbodied.agents.backends.backend import Backend
 ERRORS = (
     OpenAIRateLimitError,
     AnthropicRateLimitError,
@@ -66,7 +67,7 @@ class OpenAISerializer(Serializer):
         return {"type": "text", "text": text}
 
 
-class OpenAIBackendMixin:
+class OpenAIBackendMixin(Backend):
     """Backend for interacting with OpenAI's API.
 
     Attributes:
@@ -100,30 +101,6 @@ class OpenAIBackendMixin:
         self.serialized = OpenAISerializer
         self.response_format = response_format
 
-    def _create_completion(self, messages: List[Message], model: str = "gpt-4o", stream: bool = False, **kwargs) -> str:
-        """Creates a completion for the given messages using the OpenAI API standard.
-
-        Args:
-            messages: A list of messages to be sent to the completion API.
-            model: The model to be used for the completion.
-            stream: Whether to stream the response. Defaults to False.
-            **kwargs: Additional keyword arguments.
-
-        Returns:
-            str: The content of the completion response.
-        """
-        serialized_messages = [self.serialized(msg).serialize() for msg in messages]
-
-        completion = self.client.chat.completions.create(
-            model=model,
-            messages=serialized_messages,
-            temperature=0,
-            max_tokens=1000,
-            stream=stream,
-            response_format=self.response_format,
-            **kwargs,
-        )
-        return completion.choices[0].message.content
 
     @backoff.on_exception(
         backoff.expo,
@@ -145,9 +122,58 @@ class OpenAIBackendMixin:
         Returns:
             str: The result of the completion.
         """
-        if context is None:
-            context = []
+        context = context or self.INITIAL_CONTEXT
+        model = kwargs.pop("model", model) or self.DEFAULT_MODEL
+        serialized_messages = [self.serialized(msg).serialize() for msg in context + [message]]
 
-        if model is not None:
-            kwargs["model"] = model
-        return self._create_completion(context + [message], **kwargs)
+        completion = self.client.chat.completions.create(
+            model=model,
+            messages=serialized_messages,
+            temperature=0,
+            max_tokens=1000,
+            **kwargs,
+        )
+        return completion.choices[0].message.content
+
+    
+    def stream(
+        self, message: Message, context: List[Message] =  None, model: str = "gpt-4o", **kwargs
+    ) -> str:
+        """Streams a completion for the given messages using the OpenAI API standard.
+
+        Args:
+            messages: A list of messages to be sent to the completion API.
+            model: The model to be used for the completion.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            str: The content of the completion response.
+        """
+        model = kwargs.pop("model", model) or self.DEFAULT_MODEL
+        context = context or self.INITIAL_CONTEXT
+        serialized_messages = [self.serialized(msg).serialize() for msg in context + [message]]
+        with self.client.with_streaming_response.chat.completions.create(
+            messages=serialized_messages,
+            model=model,
+            temperature=0,
+            stream=True,
+            **kwargs,
+        ) as stream:
+            for chunk in stream.iter_text():
+                chunk = chunk.lstrip("data:")
+                if "DONE" in chunk:
+                    return
+                chunk = json.loads(chunk)["choices"][0]["delta"].get("content", "")
+                yield chunk
+
+def main():
+    backend = OpenAIBackendMixin()
+    message = Message(role="user", content="What is the capital of France?")
+    resp = ""
+    for chunk in backend.stream(message, model="astro-world"):
+        resp += chunk
+        print(resp)
+
+if __name__ == "__main__":
+    main()
+
